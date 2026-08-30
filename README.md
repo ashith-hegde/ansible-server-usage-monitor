@@ -41,6 +41,38 @@ Simulated Mail Server
 Email Report
 ```
 
+## Initial Architecture
+
+The project uses WSL2 Ubuntu as the Ansible controller and Docker containers as simulated Linux servers.
+
+```text
+Windows
+   |
+   v
+WSL2 Ubuntu
+(Ansible Controller)
+   |
+   | SSH
+   |
+   +--------> server1 (Docker)
+   |
+   +--------> server2 (Docker)
+   |
+   +--------> server3 (Docker)
+                    |
+                    v
+                  /data
+```
+
+The Docker containers will simulate separate Linux servers that Ansible can manage.
+
+Each simulated server will have:
+
+- A unique hostname
+- SSH access for Ansible
+- Its own `/data` filesystem
+- Network connectivity to the Ansible controller
+
 ## Technologies
 
 - Linux
