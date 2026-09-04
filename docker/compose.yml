@@ -1,0 +1,29 @@
+services:
+
+  server1:
+    image: ansible-monitor-server:latest
+    container_name: server1
+    ports:
+      - "2221:22"
+    networks:
+      - monitor-network
+
+  server2:
+    image: ansible-monitor-server:latest
+    container_name: server2
+    ports:
+      - "2222:22"
+    networks:
+      - monitor-network
+
+  server3:
+    image: ansible-monitor-server:latest
+    container_name: server3
+    ports:
+      - "2223:22"
+    networks:
+      - monitor-network
+
+networks:
+  monitor-network:
+    driver: bridge
