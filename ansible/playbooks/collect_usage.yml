@@ -1,0 +1,22 @@
+---
+- name: Collect /data filesystem information
+  hosts: servers
+
+  tasks:
+    - name: Get /data filesystem information
+      ansible.builtin.command: df -Th /data
+      register: data_usage
+      changed_when: false
+
+    - name: Store filesystem information
+      ansible.builtin.set_fact:
+        filesystem_info:
+          server: "{{ inventory_hostname }}"
+          total: "{{ data_usage.stdout.split('\n')[1].split()[2] }}"
+          used: "{{ data_usage.stdout.split('\n')[1].split()[3] }}"
+          available: "{{ data_usage.stdout.split('\n')[1].split()[4] }}"
+          utilization: "{{ data_usage.stdout.split('\n')[1].split()[5] }}"
+
+    - name: Display filesystem information
+      ansible.builtin.debug:
+        var: filesystem_info
