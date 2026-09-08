@@ -7,6 +7,7 @@
       ansible.builtin.command: df -Th /data
       register: data_usage
       changed_when: false
+      check_mode: false
 
     - name: Store filesystem information
       ansible.builtin.set_fact:
@@ -17,6 +18,9 @@
           available: "{{ data_usage.stdout.split('\n')[1].split()[4] }}"
           utilization: "{{ data_usage.stdout.split('\n')[1].split()[5] }}"
 
-    - name: Display filesystem information
-      ansible.builtin.debug:
-        var: filesystem_info
+    - name: Generate filesystem usage report
+      ansible.builtin.template:
+        src: "../templates/usage_report.txt.j2"
+        dest: "../../reports/usage_report_{{ now(fmt='%Y%m%d_%H%M%S') }}.txt"
+      delegate_to: localhost
+      run_once: true
