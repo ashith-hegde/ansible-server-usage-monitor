@@ -22,5 +22,13 @@
       ansible.builtin.template:
         src: "../templates/usage_report.txt.j2"
         dest: "../../reports/usage_report_{{ now(fmt='%Y%m%d_%H%M%S') }}.txt"
+      register: report_result
       delegate_to: localhost
       run_once: true
+
+    - name: Store generated report path
+      ansible.builtin.set_fact:
+        report_file: "{{ report_result.dest }}"
+      delegate_to: localhost
+      run_once: true
+
