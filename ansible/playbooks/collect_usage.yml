@@ -26,9 +26,25 @@
       delegate_to: localhost
       run_once: true
 
-    - name: Store generated report path
-      ansible.builtin.set_fact:
-        report_file: "{{ report_result.dest }}"
+    - name: Send filesystem usage report
+      community.general.mail:
+        host: localhost
+        port: 1025
+        secure: never
+        sender: ansible-monitor@localhost
+        to:
+          - test@localhost
+        subject: /data Filesystem Usage Report
+        body: |
+          Hello,
+
+          The latest /data filesystem usage report has been generated successfully.
+
+          The detailed report is attached.
+
+          Regards,
+          Ansible Server Usage Monitor
+        attach:
+          - "{{ report_result.dest }}"
       delegate_to: localhost
       run_once: true
-
