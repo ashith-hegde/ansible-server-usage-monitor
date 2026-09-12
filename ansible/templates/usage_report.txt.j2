@@ -5,14 +5,20 @@ Thresholds:
 WARNING  > 80%
 CRITICAL > 90%
 
+{% set ns = namespace(overall_status="OK") %}
+
 {{ "%-10s %-10s %-10s %-12s %-12s %-12s" | format("Server", "Total", "Used", "Available", "Utilization", "Status") }}
 
 {% for server in groups['servers'] %}
 {% set utilization = hostvars[server].filesystem_info.utilization | replace('%', '') | int %}
 {% if utilization > 90 %}
 {% set status = "CRITICAL" %}
+{% set ns.overall_status = "CRITICAL" %}
 {% elif utilization > 80 %}
 {% set status = "WARNING" %}
+{% if ns.overall_status != "CRITICAL" %}
+{% set ns.overall_status = "WARNING" %}
+{% endif %}
 {% else %}
 {% set status = "OK" %}
 {% endif %}
@@ -25,3 +31,5 @@ CRITICAL > 90%
     status
 ) }}
 {% endfor %}
+
+Overall Status: {{ ns.overall_status }}
