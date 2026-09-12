@@ -1,13 +1,27 @@
 /data Filesystem Usage Report
 =============================
 
-{{ "%-10s %-10s %-10s %-12s %-12s" | format("Server", "Total", "Used", "Available", "Utilization") }}
+Thresholds:
+WARNING  > 80%
+CRITICAL > 90%
+
+{{ "%-10s %-10s %-10s %-12s %-12s %-12s" | format("Server", "Total", "Used", "Available", "Utilization", "Status") }}
+
 {% for server in groups['servers'] %}
-{{ "%-10s %-10s %-10s %-12s %-12s" | format(
+{% set utilization = hostvars[server].filesystem_info.utilization | replace('%', '') | int %}
+{% if utilization > 90 %}
+{% set status = "CRITICAL" %}
+{% elif utilization > 80 %}
+{% set status = "WARNING" %}
+{% else %}
+{% set status = "OK" %}
+{% endif %}
+{{ "%-10s %-10s %-10s %-12s %-12s %-12s" | format(
     server,
     hostvars[server].filesystem_info.total,
     hostvars[server].filesystem_info.used,
     hostvars[server].filesystem_info.available,
-    hostvars[server].filesystem_info.utilization
+    hostvars[server].filesystem_info.utilization,
+    status
 ) }}
 {% endfor %}
