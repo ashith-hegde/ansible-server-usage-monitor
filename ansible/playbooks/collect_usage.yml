@@ -22,5 +22,31 @@
       ansible.builtin.template:
         src: "../templates/usage_report.txt.j2"
         dest: "../../reports/usage_report_{{ now(fmt='%Y%m%d_%H%M%S') }}.txt"
+      register: report_result
+      delegate_to: localhost
+      run_once: true
+
+    - name: Send filesystem usage report
+      community.general.mail:
+        host: localhost
+        port: 1025
+        secure: never
+        sender: ansible-monitor@localhost
+        to:
+          - test@localhost
+        subject: /data Filesystem Usage Report
+        body: |
+          Hello,
+
+          The latest /data filesystem usage report has been generated successfully.
+
+          The detailed report is as below:- 
+
+          {{ lookup('file', report_result.dest) }}
+
+          Regards,
+          Ansible Server Usage Monitor
+        attach:
+          - "{{ report_result.dest }}"
       delegate_to: localhost
       run_once: true
