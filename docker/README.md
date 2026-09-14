@@ -128,9 +128,9 @@ The Docker environment is complete and provides the infrastructure required for 
 Docker environment       Complete
 Ansible inventory        Complete
 Ansible connectivity     Complete
-/data monitoring         Next
-Reporting                Planned
-Mail automation          Planned
+/data monitoring         Complete
+Reporting                Complete
+Mail automation          Complete
 ```
 
 Future Docker changes will be made only when required by later project milestones.
