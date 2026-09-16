@@ -22,6 +22,8 @@ WSL2 Ubuntu
                     localhost:2223
 ```
 
+The Ansible configuration uses the Docker-published SSH ports to connect to each managed server.
+
 ## Inventory
 
 The inventory is defined in `inventory.ini`.
@@ -44,6 +46,114 @@ Common connection variables are defined at the group level, while the SSH port i
 
 > **Note:** The username and password above are intentionally simple lab credentials. Production environments should use secure authentication mechanisms such as SSH keys and/or Ansible Vault rather than storing plaintext credentials in an inventory.
 
+## Automation
+
+The main automation is implemented in:
+
+```text
+playbooks/
+└── collect_usage.yml
+```
+
+The playbook runs against the `servers` group and performs the following workflow:
+
+```text
+Managed Servers
+       |
+       | df -Th /data
+       v
+Collect filesystem information
+       |
+       | set_fact
+       v
+Store server-specific information
+       |
+       | Jinja2 template
+       v
+Generate consolidated report
+       |
+       | community.general.mail
+       v
+Send report through Mailpit
+```
+
+### Filesystem Collection
+
+The playbook runs:
+
+```bash
+df -Th /data
+```
+
+on each managed server.
+
+The command output is registered and the required values are stored in the `filesystem_info` host variable using `ansible.builtin.set_fact`.
+
+The stored information includes:
+
+- Server name
+- Total filesystem size
+- Used space
+- Available space
+- Utilization percentage
+
+The collection task is read-only and is configured with `changed_when: false`.
+
+### Report Generation
+
+The report is generated using:
+
+```text
+templates/usage_report.txt.j2
+```
+
+The template uses the information stored for each managed server to produce one consolidated filesystem usage report.
+
+Report generation is delegated to the Ansible controller (`localhost`) and uses `run_once: true`, so a single report is generated for all three servers.
+
+The generated report is stored under the project's `reports/` directory with a timestamped filename.
+
+### Usage Thresholds
+
+The report evaluates filesystem utilization using the following thresholds:
+
+```text
+OK        <= 80%
+WARNING   > 80%
+CRITICAL  > 90%
+```
+
+Each server receives a status in the report, and an overall status is calculated for the complete report.
+
+A `CRITICAL` status takes precedence over `WARNING` when determining the overall status.
+
+### Email Reporting
+
+The playbook uses the `community.general.mail` module to send the generated report through the local Mailpit SMTP service.
+
+The current lab configuration uses:
+
+```text
+SMTP host: localhost
+SMTP port: 1025
+```
+
+The report is included both in the email body and as an attachment.
+
+Email delivery is performed on the Ansible controller using `delegate_to: localhost` and `run_once: true`.
+
+Mailpit is used only as a local SMTP test sink for this project. A production implementation would use an appropriate organizational SMTP relay or mail service.
+
+## Running the Automation
+
+From the project root, run:
+
+```bash
+ansible-playbook -i ansible/inventory.ini ansible/playbooks/collect_usage.yml
+```
+
+The playbook requires the three Docker-based managed servers to be running and reachable through their configured SSH ports.
+
 ## Connectivity Verification
 
 Ansible connectivity was verified against all three managed servers using the `ping` module:
@@ -52,24 +162,54 @@ Ansible connectivity was verified against all three managed servers using the `p
 ansible servers -i ansible/inventory.ini -m ping
 ```
 
-All three hosts returned:
+All three hosts have been successfully validated and returned:
 
 ```text
-SUCCESS
+server1 | SUCCESS
+server2 | SUCCESS
+server3 | SUCCESS
+
 "ping": "pong"
 ```
 
-The Python interpreter was automatically discovered on the managed containers.
+The inventory can also be inspected with:
 
-## Planned Ansible Components
+```bash
+ansible-inventory -i ansible/inventory.ini --graph
+```
 
-As the project develops, this directory will contain the Ansible automation used to:
+and individual host variables can be checked with:
 
-- Collect `/data` filesystem usage from the managed servers
-- Generate structured usage information
-- Produce a report
-- Send the report through the simulated mail server
-- Add error handling and other operational improvements
+```bash
+ansible-inventory -i ansible/inventory.ini --host server1
+```
 
-The Ansible implementation will be expanded incrementally as each project milestone is completed.
+Ansible automatically discovered `/usr/bin/python3.12` as the Python interpreter on the managed containers during validation. The discovery warning does not prevent the automation from running successfully.
+
+## Ansible Environment
+
+The current controller environment was validated with:
+
+```text
+Ansible Core: 2.20.1
+Python:       3.14.4
+Jinja2:       3.1.6
+```
+
+No project-specific `ansible.cfg` is currently defined; Ansible reports `config file = None` in the current controller environment.
+
+## Current Status
+
+The Ansible configuration and automation for the current project scope are complete.
+
+```text
+Inventory configuration       Complete
+Server connectivity           Complete
+/data collection              Complete
+Filesystem report generation  Complete
+Usage thresholds              Complete
+Email reporting               Complete
+```
+
+Future Ansible changes will be made only when required by later project milestones.
 
