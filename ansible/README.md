@@ -119,7 +119,7 @@ The report evaluates filesystem utilization using the following thresholds:
 
 ```text
 OK        <= 80%
-WARNING   > 80%
+WARNING   > 80% and <=90%
 CRITICAL  > 90%
 ```
 
