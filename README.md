@@ -2,25 +2,25 @@
 
 ## Project Overview
 
-A hands-on DevOps automation project that uses Ansible to collect `/data` filesystem usage information from multiple simulated servers.
+A hands-on DevOps automation project that uses Ansible to collect `/data` filesystem usage information from multiple simulated servers, generate a consolidated report, evaluate usage thresholds, and send the report through a simulated mail server.
 
-The servers will initially be simulated using Docker containers.
+The servers are simulated using Docker containers, with WSL2 Ubuntu acting as the Ansible controller.
 
 ## Project Goal
 
 The goal is to automate the collection and reporting of filesystem information from multiple servers.
 
-The project will eventually:
+The project currently:
 
-1. Provision multiple simulated servers using Docker.
-2. Configure Ansible to communicate with the servers.
-3. Collect `/data` filesystem information.
-4. Determine filesystem availability and utilization.
-5. Generate a structured report.
-6. Send the report through a simulated mail server.
-7. Use Git branches and development workflows to simulate a realistic engineering environment.
+1. Creates three simulated Linux servers using Docker.
+2. Configure Ansible to communicate with the servers over SSH.
+3. Collect `/data` filesystem information from each server.
+4. Determine filesystem utilization and assigns a status.
+5. Generate a consolidated, timestamped report.
+6. Send the report through a simulated Mailpit SMTP server.
+7. Uses Git branches and development workflows to simulate a realistic engineering environment.
 
-## Planned Architecture
+## Architecture
 
 ```text
 Docker Containers
@@ -32,18 +32,19 @@ Docker Containers
 Collect /data information
        |
        v
+Evaluate thresholds
+       |
+       v
 Generate Report
        |
        v
-Simulated Mail Server
+Mailpit SMTP Server
        |
        v
 Email Report
 ```
 
-## Initial Architecture
-
-The project uses WSL2 Ubuntu as the Ansible controller and Docker containers as simulated Linux servers.
+## Environment Architecture
 
 ```text
 Windows
@@ -55,32 +56,43 @@ WSL2 Ubuntu
    | SSH
    |
    +--------> server1 (Docker)
+   |           localhost:2221 -> container:22
    |
    +--------> server2 (Docker)
+   |           localhost:2222 -> container:22
    |
    +--------> server3 (Docker)
-                    |
-                    v
-                  /data
+               localhost:2223 -> container:22
 ```
 
-The Docker containers will simulate separate Linux servers that Ansible can manage.
+WSL2 Ubuntu
+   |
+   | SMTP
+   v
+Mailpit
+localhost:1025
+Web UI: localhost:8025
+```
 
-Each simulated server will have:
+The three Docker containers simulate separate Linux servers that Ansible manages.
 
-- A unique hostname
+Each simulated server provides:
+
+- Ubuntu 24.04-based Linux environment
 - SSH access for Ansible
-- Its own `/data` filesystem
-- Network connectivity to the Ansible controller
+- An `ansible` user
+- A `/data` directory used as the monitoring target
 
 ## Technologies
 
 - Linux
 - Ansible
 - Docker
+- Mailpit
 - Git
 - GitHub
 - YAML
+- Jinja2
 - Bash
 
 ## Project Status
@@ -91,49 +103,149 @@ Each simulated server will have:
 - [x] Local Git repository initialized
 - [x] `main` branch created
 - [x] `develop` branch created
-- [x] Initial README created
+- [x] Initial project structure created
 
 ### Milestone 2 — Docker Environment
 
-- [ ] Create simulated servers
-- [ ] Configure server filesystems
-- [ ] Establish networking
-- [ ] Verify container connectivity
+- [x] Create simulated servers
+- [x] Configure server filesystems
+- [x] Establish networking
+- [x] Verify container connectivity
 
 ### Milestone 3 — Ansible
 
-- [ ] Create Ansible inventory
-- [ ] Configure Ansible connectivity
-- [ ] Test connectivity with `ansible.builtin.ping`
-- [ ] Collect `/data` information
-- [ ] Process the collected information
+- [x] Create Ansible inventory
+- [x] Configure Ansible connectivity
+- [x] Test connectivity with `ansible.builtin.ping`
+- [x] Collect `/data` information
+- [x] Process the collected information
 
 ### Milestone 4 — Reporting
 
-- [ ] Generate structured report
-- [ ] Add timestamp
-- [ ] Handle unavailable servers
-- [ ] Format output for email
+- [x] Generate consolidated report
+- [x] Add timestamp to generated reports
+- [x] Evaluate filesystem utilization thresholds
+- [x] Format report for email delivery
 
 ### Milestone 5 — Mail Automation
 
-- [ ] Deploy simulated mail server
-- [ ] Configure mail delivery
-- [ ] Send generated report
-- [ ] Test end-to-end automation
+- [x] Deploy Mailpit as a simulated SMTP server
+- [x] Configure mail delivery
+- [x] Send generated report
+- [x] Test end-to-end automation
 
 ## Repository Structure
-
-The repository structure will evolve as the project develops.
 
 ```text
 ansible-server-usage-monitor/
 ├── ansible/
+│   ├── README.md
+│   ├── inventory.ini
+│   ├── playbooks/
+│   │   └── collect_usage.yml
+│   └── templates/
+│       └── usage_report.txt.j2
 ├── docker/
-├── inventory/
-├── README.md
-└── .gitignore
+│   ├── Dockerfile
+│   ├── README.md
+│   └── compose.yml
+├── reports/
+├── .gitignore
+└── README.md
 ```
+
+Generated files under `reports/` are excluded from Git through `.gitignore`.
+
+## Usage Thresholds
+
+Filesystem utilization is evaluated using the following thresholds:
+
+```text
+OK        <= 80%
+WARNING   > 80%
+CRITICAL  > 90%
+```
+
+Each server receives a status in the generated report.
+
+An overall status is also calculated for the report. A `CRITICAL` status takes precedence over `WARNING` when determining the overall status.
+
+## Running the Project
+
+Start the Docker environment from the project root:
+
+```bash
+docker compose -f docker/compose.yml up -d
+```
+
+Run the Ansible automation:
+
+```bash
+ansible-playbook -i ansible/inventory.ini ansible/playbooks/collect_usage.yml
+```
+
+The playbook collects `/data` filesystem information from all three simulated servers, generates a timestamped report under `reports/`, and sends the report through Mailpit.
+
+Generated reports can be inspected with:
+
+```bash
+ls -lh reports/
+```
+
+The Mailpit web interface is available at:
+
+```text
+http://localhost:8025
+```
+
+Stop the Docker environment with:
+
+```bash
+docker compose -f docker/compose.yml down
+```
+
+## Validation
+
+The complete Ansible workflow has been successfully validated.
+
+A successful execution produced:
+
+```text
+PLAY RECAP
+server1 : ok=5    changed=1    unreachable=0    failed=0
+server2 : ok=3    changed=0    unreachable=0    failed=0
+server3 : ok=3    changed=0    unreachable=0    failed=0
+```
+
+The generated report contains filesystem information and per-server status:
+
+```text
+Server     Total      Used       Available    Utilization  Status
+
+server1    1007G      3.8G       952G         1%           OK
+server2    1007G      3.8G       952G         1%           OK
+server3    1007G      3.8G       952G         1%           OK
+
+Overall Status: OK
+```
+
+Threshold behavior has also been tested independently for `OK`, `WARNING`, and `CRITICAL` conditions, including validation that a `CRITICAL` server keeps the overall report status at `CRITICAL`.
+
+## Git Workflow
+
+The project uses feature branches for development:
+
+```text
+main
+  ^
+  |
+develop
+  ^
+  |
+feature/*
+```
+
+Feature work is developed on a dedicated feature branch, reviewed through a pull request into `develop`, and promoted to `main` at a stable milestone.
 
 ## Future Enhancements
 
@@ -146,4 +258,7 @@ Potential future improvements include:
 - Server health checks
 - Historical usage data
 - Alerting based on disk utilization
+
+
+The current project intentionally remains a focused automation lab rather than a production monitoring system.
 
