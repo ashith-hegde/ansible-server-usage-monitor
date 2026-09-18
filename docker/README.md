@@ -24,11 +24,13 @@ WSL2 Ubuntu
 
 Each simulated server provides:
 
-- Ubuntu-based Linux environment
+- Ubuntu 24.04-based Linux environment
 - SSH server for Ansible connectivity
 - `ansible` user for the lab
 - `/data` directory for filesystem usage monitoring
 - Connectivity through a shared Docker bridge network
+
+The project also includes a Mailpit container as a local SMTP test server. It is used by the Ansible reporting workflow and is intentionally kept separate from the `monitor-network`.
 
 ## Docker Components
 
@@ -48,11 +50,26 @@ Three Containers
     +--> server1
     +--> server2
     +--> server3
+
+Docker Compose
+    |
+    +--> mailpit
+         SMTP: 1025
+         Web UI: 8025
 ```
 
 ### Dockerfile
 
-`Dockerfile` defines the reusable Ubuntu-based server image. It installs the required SSH and sudo packages, creates the `ansible` user, creates the `/data` directory, and configures the container to run the SSH server.
+`Dockerfile` defines the reusable Ubuntu-based server image. It:
+
+- Uses `ubuntu:24.04` as the base image
+- Installs `openssh-server` and `sudo`
+- Creates the `ansible` user
+- Adds the `ansible` user to the `sudo` group
+- Creates `/var/run/sshd` and `/data`
+- Enables SSH password authentication
+- Exposes container port `22`
+- Runs `sshd` in the foreground as the container's main process
 
 ### Docker Image
 
@@ -61,6 +78,14 @@ The Dockerfile is built into the reusable image:
 ```text
 ansible-monitor-server:latest
 ```
+
+Build the image from the project root with:
+
+```bash
+docker build -t ansible-monitor-server ./docker
+```
+
+The current image is a Linux `amd64` image and is approximately 85 MB in size.
 
 ### Docker Compose
 
@@ -74,13 +99,34 @@ The containers use the following SSH port mappings:
 | server2 | 2222 | 22 |
 | server3 | 2223 | 22 |
 
-All three containers are connected to the same Docker bridge network.
+The three simulated servers are connected to the Compose-created `docker_monitor-network` bridge network.
+
+The host port mappings allow the WSL2 Ansible controller to connect to each container through `localhost`, while the containers remain separate server instances.
+
+### Mailpit
+
+Mailpit provides a local SMTP test endpoint for validating the project's email reporting workflow.
+
+| Service | Host Port | Container Port |
+|---------|-----------|----------------|
+| SMTP | 1025 | 1025 |
+| Web UI | 8025 | 8025 |
+
+The Mailpit service is not attached to `monitor-network`. It is therefore on the Compose default network instead of the network used by the simulated servers.
+
+Mailpit is a disposable local test sink for development and validation. It is not intended to represent a production mail server or production email storage system.
 
 ## `/data` Directory
 
 Each simulated server contains a `/data` directory.
 
 At the current stage, `/data` is a directory inside the container and is backed by the container's writable filesystem layer. It is not configured as a separate Docker volume.
+
+For example:
+
+```bash
+docker exec server1 sh -c 'ls -ld /data && df -Th /data'
+```
 
 The `/data` filesystem will be the target of the Ansible monitoring automation, which will collect filesystem usage information from each server.
 
@@ -104,6 +150,8 @@ Stop the environment with:
 docker compose -f docker/compose.yml down
 ```
 
+If the Docker environment is stopped or the host environment is shut down, the containers can be started again using the `up` command above. The project does not configure a Docker restart policy for these lab containers.
+
 ## Connectivity Validation
 
 The Docker environment has been validated from the WSL2 Ansible controller.
@@ -116,9 +164,33 @@ ssh -p 2222 ansible@localhost
 ssh -p 2223 ansible@localhost
 ```
 
-The `/data` directory was also verified on the containers.
+The `ansible` user exists inside the server image and is a member of the `sudo` group.
+
+The `/data` directory can be verified with:
+
+```bash
+docker exec server1 sh -c 'ls -ld /data && df -Th /data'
+```
 
 Ansible connectivity was subsequently verified using the project inventory and the `ping` module. All three servers returned `SUCCESS` with `pong`.
+
+## Network Design
+
+The three simulated servers use the same Docker bridge network:
+
+```text
+docker_monitor-network
+        |
+        +---- server1
+        |
+        +---- server2
+        |
+        +---- server3
+```
+
+The current containers have Docker-assigned IP addresses on this network. These addresses are not used by the Ansible inventory; Ansible connects through the published localhost SSH ports instead.
+
+Mailpit uses the Compose default network and does not need to communicate directly with the simulated servers. The Ansible controller connects to Mailpit through its published SMTP port.
 
 ## Current Status
 
@@ -128,9 +200,9 @@ The Docker environment is complete and provides the infrastructure required for 
 Docker environment       Complete
 Ansible inventory        Complete
 Ansible connectivity     Complete
-/data monitoring         Next
-Reporting                Planned
-Mail automation          Planned
+/data monitoring         Complete
+Reporting                Complete
+Mail automation          Complete
 ```
 
 Future Docker changes will be made only when required by later project milestones.
