@@ -1,0 +1,52 @@
+---
+- name: Collect /data filesystem information
+  hosts: servers
+
+  tasks:
+    - name: Get /data filesystem information
+      ansible.builtin.command: df -Th /data
+      register: data_usage
+      changed_when: false
+      check_mode: false
+
+    - name: Store filesystem information
+      ansible.builtin.set_fact:
+        filesystem_info:
+          server: "{{ inventory_hostname }}"
+          total: "{{ data_usage.stdout.split('\n')[1].split()[2] }}"
+          used: "{{ data_usage.stdout.split('\n')[1].split()[3] }}"
+          available: "{{ data_usage.stdout.split('\n')[1].split()[4] }}"
+          utilization: "{{ data_usage.stdout.split('\n')[1].split()[5] }}"
+
+    - name: Generate filesystem usage report
+      ansible.builtin.template:
+        src: "../templates/usage_report.txt.j2"
+        dest: "../../reports/usage_report_{{ now(fmt='%Y%m%d_%H%M%S') }}.txt"
+      register: report_result
+      delegate_to: localhost
+      run_once: true
+
+    - name: Send filesystem usage report
+      community.general.mail:
+        host: localhost
+        port: 1025
+        secure: never
+        sender: ansible-monitor@localhost
+        to:
+          - test@localhost
+        subject: /data Filesystem Usage Report
+        body: |
+          Hello,
+
+          The latest /data filesystem usage report has been generated successfully.
+
+          The detailed report is as below:- 
+
+          {{ lookup('file', report_result.dest) }}
+
+          Regards,
+          Ansible Server Usage Monitor
+        attach:
+          - "{{ report_result.dest }}"
+      delegate_to: localhost
+      run_once: true
