@@ -44,6 +44,8 @@ Mailpit SMTP Server
 Email Report
 ```
 
+![Project Architecture](docs/architecture.png)
+
 ## Environment Architecture
 
 ```text
@@ -63,7 +65,6 @@ WSL2 Ubuntu
    |
    +--------> server3 (Docker)
                localhost:2223 -> container:22
-```
 
 WSL2 Ubuntu
    |
@@ -149,6 +150,9 @@ ansible-server-usage-monitor/
 │   ├── Dockerfile
 │   ├── README.md
 │   └── compose.yml
+├── docs/
+│   ├── architecture.png
+│   └── mailpit-report.png
 ├── reports/
 ├── .gitignore
 └── README.md
@@ -230,6 +234,24 @@ Overall Status: OK
 ```
 
 Threshold behavior has also been tested independently for `OK`, `WARNING`, and `CRITICAL` conditions, including validation that a `CRITICAL` server keeps the overall report status at `CRITICAL`.
+
+## Validation Evidence
+
+The project was validated end-to-end:
+
+- Docker containers are reachable through SSH.
+- Ansible connectivity was verified with `ansible.builtin.ping`.
+- `/data` filesystem usage was collected from all three simulated servers.
+- Threshold logic was tested for `OK`, `WARNING`, and `CRITICAL` conditions.
+- A consolidated report was generated using Jinja2.
+- The report was delivered through Mailpit SMTP.
+- The generated report was displayed in the Mailpit web interface.
+
+### Mailpit Report
+
+The screenshot below shows the generated `/data` filesystem usage report received by the Mailpit test mailbox.
+
+![Mailpit Filesystem Usage Report](docs/mailpit-report.png)
 
 ## Git Workflow
 
