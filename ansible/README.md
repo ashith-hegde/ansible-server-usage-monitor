@@ -87,7 +87,13 @@ df -Th /data
 
 on each managed server.
 
-The command output is registered and the required values are stored in the `filesystem_info` host variable using `ansible.builtin.set_fact`.
+The command result is captured using Ansible's `register` keyword:
+
+```yaml
+register: data_usage
+```
+
+The registered result is then used by `ansible.builtin.set_fact` to extract the required filesystem values.
 
 The stored information includes:
 
@@ -97,7 +103,11 @@ The stored information includes:
 - Available space
 - Utilization percentage
 
-The collection task is read-only and is configured with `changed_when: false`.
+The collection task is read-only and is configured with:
+
+```yaml
+changed_when: false
+```
 
 ### Report Generation
 
@@ -109,7 +119,16 @@ templates/usage_report.txt.j2
 
 The template uses the information stored for each managed server to produce one consolidated filesystem usage report.
 
-Report generation is delegated to the Ansible controller (`localhost`) and uses `run_once: true`, so a single report is generated for all three servers.
+The Jinja2 template accesses the filesystem information for each managed host through Ansible's `hostvars` dictionary. This allows the controller-side template to combine data collected from all three servers into a single report.
+
+Report generation uses:
+
+```yaml
+delegate_to: localhost
+run_once: true
+```
+
+`delegate_to: localhost` executes the report-generation task on the Ansible controller rather than on the managed servers. `run_once: true` ensures that the task runs only once, producing one consolidated report instead of a separate report for each server.
 
 The generated report is stored under the project's `reports/` directory with a timestamped filename.
 
