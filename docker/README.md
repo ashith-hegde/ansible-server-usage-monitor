@@ -85,7 +85,7 @@ Build the image from the project root with:
 docker build -t ansible-monitor-server ./docker
 ```
 
-The current image is a Linux `amd64` image and is approximately 85 MB in size.
+The current image is a Linux `amd64` image.
 
 ### Docker Compose
 
@@ -101,7 +101,7 @@ The containers use the following SSH port mappings:
 
 The three simulated servers are connected to the Compose-created `docker_monitor-network` bridge network.
 
-The host port mappings allow the WSL2 Ansible controller to connect to each container through `localhost`, while the containers remain separate server instances.
+The published host ports are used by the WSL2 Ansible controller to connect to each container through `localhost`. The Docker bridge network provides connectivity between the containers themselves, but the Ansible inventory does not use the containers' Docker-assigned IP addresses.
 
 ### Mailpit
 
@@ -194,7 +194,7 @@ Mailpit uses the Compose default network and does not need to communicate direct
 
 ## Current Status
 
-The Docker environment is complete and provides the infrastructure required for the Ansible automation stage.
+The Docker environment required for the current project scope is complete and provides the infrastructure required for the Ansible automation stage.
 
 ```text
 Docker environment       Complete
